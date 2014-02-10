@@ -65,6 +65,7 @@ var Path = Class.create({
     initialize: function(renderer) {
 	this.renderer = renderer;
 	this.model = null;
+	this.has_entered_last = false; // Have they gone near the last one?
 	var self = this;
 	this.renderer.loadObj("heart-outline", function(obj) {
             obj.traverse( function( node ) {
@@ -75,6 +76,7 @@ var Path = Class.create({
                 }
             });
 	    //renderer.scene.add(obj);
+	    console.log("Loaded model");
 	    self.model = obj;
 	});
     },
@@ -92,14 +94,34 @@ var Path = Class.create({
 	    obj.position.copy(p.pos);
 	    this.renderer.scene.add(obj);
 	}
+	self.points = points;
     },
 
     update: function(dt, player_pos) {
 	// Check to see if they've finished
-	if (player_pos.z > 40.0) {
+	/*if (player_pos.z > 40.0) {
 	    console.log("They're done!");
 	    return true;
+	}*/
+
+	// Check the distance to the last one
+	var last_dist = player_pos.distanceTo(this.points[this.points.length-1].pos);
+	if (!this.has_entered_last) {
+	    if (last_dist < 5.0) {
+		this.has_entered_last = true;
+	    }
+	} else {
+	    if (last_dist > 6.0) {
+		return true;
+	    }
 	}
+
+	// Check the distance to all points, make sure we're at least *near* points
+	for (var i=0; i<this.points.length; i++) {
+	    var dist = player_pos.distanceTo(this.points[i].pos);
+	    if (dist < 100.0) break;
+	}
+	if (i == this.points.length) return true;
 	return false;
     }
 });
@@ -138,6 +160,15 @@ var Plane = Class.create({
 	this.renderer.scene.getObjectByName("plane").position.copy(v);
     },
 
+    setAt: function(at) {
+	var m = new THREE.Matrix4();
+	m.lookAt(this.getPos(), at, new THREE.Vector3(0,1,0));
+	//m.setPosition(this.getPos());
+	this.getObj().applyMatrix(m);
+	console.log(this.getObj().matrix);
+	//this.getObj().updateMatrixWorld();
+    },
+
     getObj: function() {
 	return this.renderer.scene.getObjectByName("plane");
     },
@@ -152,6 +183,7 @@ var Plane = Class.create({
 
     update: function(dt) {
 	if (this.renderer.scene.getObjectByName("plane") === undefined) return;
+	if (this.heart === null) return;
 
 	this.trailcountdown -= dt;
 	if (this.trailcountdown < 0) {
@@ -226,7 +258,9 @@ $j(function() {
 
     var renderer = new Renderer();
     var path = new Path(renderer);
-    setTimeout(function() {
+    var plane = new Plane(renderer);
+    var flightcontrols = new FlightControls(plane);
+    setTimeout(function() { // TODO: Make this "on loaded"
 	points = [];
 	var s = "lane";
 	var dp = new THREE.Vector3(0,0,0);
@@ -242,25 +276,37 @@ $j(function() {
 	}
 	path.setPath(points);
 	//path.setPath([{pos:new THREE.Vector3(0,0,10)}, {pos:new THREE.Vector3(0,0,20)}, {pos:new THREE.Vector3(0,0,30)}]);
-    }, 100);
-    var plane = new Plane(renderer);
-    var flightcontrols = new FlightControls(plane);
-    var has_finished = false;
-    function render() {
-	if (plane.getObj() === undefined) {
-	    setTimeout(render, 20);
-	    return;
-	}
-	if (has_finished === false) {
-	    flightcontrols.update(0.02);
-	    plane.update(0.02);
-	    if (path.update(0.02, plane.getPos()) === true) {
-		renderer.setupOrbitControls();
-		has_finished = true;
+
+	// Configure the aeroplane with the starting location
+	plane.setPos(points[0].pos.clone());
+	var at = points[0].pos.clone().sub(points[1].pos);
+	console.log("At vector:");
+	console.log(at);
+	plane.setAt(at);
+
+	var has_finished = false;
+	var start_tm = new Date();
+	start_tm = start_tm.getTime();
+	function render() {
+	    if (plane.getObj() === undefined) {
+		setTimeout(render, 20);
+		return;
 	    }
+	    if (has_finished === false) {
+		flightcontrols.update(0.02);
+		plane.update(0.02);
+		if (path.update(0.02, plane.getPos()) === true) {
+		    renderer.setupOrbitControls();
+		    has_finished = true;
+
+		    var total_tm = new Date();
+		    total_tm = total_tm.getTime() - start_tm;
+		    alert("Total time: "+total_tm);
+		}
+	    }
+	    renderer.render();
+	    setTimeout(render, 20);
 	}
-	renderer.render();
-	setTimeout(render, 20);
-    }
-    render();
+	render();
+    }, 1000);
 });
