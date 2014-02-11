@@ -61,6 +61,10 @@ var Renderer = Class.create({
     }
 });
 
+function printvec(v) {
+    return "{"+v.x+", "+v.y+", "+v.z+"}";
+}
+
 var Path = Class.create({
     initialize: function(renderer) {
 	this.renderer = renderer;
@@ -92,6 +96,14 @@ var Path = Class.create({
 	    var obj = self.model.clone();//new THREE.Object3D();
 	    //obj.add(self.model);
 	    obj.position.copy(p.pos);
+
+	    if (i > 0 && i+1<points.length) {
+		var at = points[i+1].pos.clone().sub(points[i-1].pos).add(points[i].pos);
+		//at = new THREE.Vector3(1,1,1);
+		console.log("At: "+printvec(at)+" from "+printvec(points[i-1].pos)+" to "+printvec(points[i+1].pos));
+		obj.lookAt(at);
+	    }
+
 	    this.renderer.scene.add(obj);
 	}
 	self.points = points;
@@ -146,10 +158,14 @@ var Plane = Class.create({
 	this.trailcount = 0;
 	this.trailcountdown = 0.25;
 
+	this.log_trail = [];
+	this.log_countdown = 0.25;
+
 	this.roll = 0.0;
 	this.elevator = 0.0;
+	this.yaw = 0.0;
 
-	this.vel = new THREE.Vector3(0,0,15);
+	this.vel = new THREE.Vector3(0,0,60);
     },
 
     getPos: function() {
@@ -177,8 +193,16 @@ var Plane = Class.create({
 	this.roll += amt;
     },
 
+    applyYaw: function(amt) {
+	this.yaw += amt;
+    },
+
     applyElevator: function(amt) {
 	this.elevator += amt;
+    },
+
+    getTrailLog: function() {
+	return this.log_trail;
     },
 
     update: function(dt) {
@@ -187,16 +211,23 @@ var Plane = Class.create({
 
 	this.trailcountdown -= dt;
 	if (this.trailcountdown < 0) {
-	    this.trailcountdown = 2.5;
+	    this.trailcountdown = 1.0;
 	    var obj = this.heart.clone();
-	    obj.position.copy(this.getPos());
+	    //obj.position.copy(this.getPos());
+	    obj.applyMatrix(this.getObj().matrix);
 	    this.renderer.scene.add(obj);
+	}
+
+	this.log_countdown -= dt;
+	if (this.log_countdown < 0) {
+	    this.log_trail.push(this.getPos().clone());
 	}
 
 	var m = new THREE.Matrix4();
 	//m.makeRotationX(this.elevator*dt);
 	this.getObj().rotateOnAxis(new THREE.Vector3(1,0,0), -this.elevator*dt);
 	this.getObj().rotateOnAxis(new THREE.Vector3(0,0,1), this.roll*dt);
+	this.getObj().rotateOnAxis(new THREE.Vector3(0,1,0), this.yaw*dt);
 	//this.getObj().matrix.extractRotation(m)
 	m.extractRotation(this.getObj().matrix);
 	var global_vel = this.vel.clone().applyMatrix4(m);
@@ -205,14 +236,15 @@ var Plane = Class.create({
 
 	this.elevator = 0.0;
 	this.roll = 0.0;
+	this.yaw = 0.0;
 
 	this.setPos(this.getPos().add(global_vel.clone().multiplyScalar(dt)));
 
-	var offset = new THREE.Vector3(0,5,-20);
+	var offset = new THREE.Vector3(0,2,-20);
 	offset.applyMatrix4(m);
 	offset.add(this.getPos());
 	//offset = this.getObj().localToWorld(offset);
-	var at = new THREE.Vector3(0,5,100);
+	var at = new THREE.Vector3(0,2,100);
 	at.applyMatrix4(m);//this.getObj().localToWorld(at);
 	at.add(this.getPos());
 	this.renderer.camera.lookAt(at);
@@ -239,6 +271,8 @@ var FlightControls = Class.create({
 	this.ELEVATE_DOWN_KEY = 87; // W
 	this.ROLL_LEFT_KEY = 65; // A
 	this.ROLL_RIGHT_KEY = 68; // D
+	this.YAW_LEFT_KEY = 90; // Z
+	this.YAW_RIGHT_KEY = 88; // X
     },
 
     update: function(dt) {
@@ -246,6 +280,10 @@ var FlightControls = Class.create({
 	    this.plane.applyRoll(-2.0);
 	if (this.downkeys.indexOf(this.ROLL_RIGHT_KEY) !== -1)
 	    this.plane.applyRoll(2.0);
+	if (this.downkeys.indexOf(this.YAW_LEFT_KEY) !== -1)
+	    this.plane.applyYaw(2.0);
+	if (this.downkeys.indexOf(this.YAW_RIGHT_KEY) !== -1)
+	    this.plane.applyYaw(-2.0);
 	if (this.downkeys.indexOf(this.ELEVATE_UP_KEY) !== -1)
 	    this.plane.applyElevator(1.0);
 	if (this.downkeys.indexOf(this.ELEVATE_DOWN_KEY) !== -1)
@@ -262,7 +300,7 @@ $j(function() {
     var flightcontrols = new FlightControls(plane);
     setTimeout(function() { // TODO: Make this "on loaded"
 	points = [];
-	var s = "lane";
+	var s = "lane"; // TODO: Make this configurable
 	var dp = new THREE.Vector3(0,0,0);
 	for (var j=0; j<s.length; j++) {
 	    for (var i=0; i<letter_Definitions[s.charAt(j)].length; i++) {
@@ -302,6 +340,33 @@ $j(function() {
 		    var total_tm = new Date();
 		    total_tm = total_tm.getTime() - start_tm;
 		    alert("Total time: "+total_tm);
+		    if (confirm("Do you want to make a picture?")) {
+			$j.ajax({ type: "POST",
+				  url: "http://localhost:1415/image",
+				  processData: false,
+				  data: JSON.stringify({points: plane.getTrailLog()})
+				}).done(function(msg) {
+				    //alert("Got: "+msg);
+				    var source = $j("#email-dialog-tpl").html();
+				    var template = Handlebars.compile(source);
+				    var ctx = {url: msg};
+				    var s = template(ctx);
+				    renderer.controls.enabled = false;
+				    $j("body").append(s);
+				    $j("#email-dialog").dialog({
+					width: "512px",
+					height: "512px",
+					resizeable: false
+				    });
+				    $j("#send-email").click(function() {
+					var email = prompt("To what email address?");
+					$j.ajax({type: "POST",
+						 url: "http://localhost:1415/email",
+						 processData: false,
+						 data: msg});
+				    });
+				});
+		    }
 		}
 	    }
 	    renderer.render();

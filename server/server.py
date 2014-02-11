@@ -1,7 +1,7 @@
 import tornado.ioloop
 import tornado.web
 import json
-import Image
+import Image, ImageDraw
 import random
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key as S3Key
@@ -21,6 +21,18 @@ class ImageHandler(tornado.web.RequestHandler):
     def post(self):
         d = json.loads(self.request.body)
         out = Image.new("RGB", (512, 512), "white")
+
+        # Pull all the points into two-space
+        pnts = []
+        for p in d["points"]:
+            pnts.append((p["x"], p["y"]))
+
+        # Render the image
+        imdraw = ImageDraw.Draw(out)
+        for i in xrange(len(pnts)-1):
+            imdraw.line(pnts[i]+pnts[i+1], fill=128)
+            pass
+
         out.save("image.png")
         url = ""
         for i in range(15):
@@ -28,7 +40,10 @@ class ImageHandler(tornado.web.RequestHandler):
         k = S3Key(s3_Bucket)
         k.key = "valentines-2014/"+url+".png"
         k.set_contents_from_filename("image.png")
-        self.write(self.request.body+" "+url)
+        self.add_header("Access-Control-Allow-Origin", "*");
+        self.write(url)
+	self.finish()
+        print url
         pass
 
 application = tornado.web.Application([
