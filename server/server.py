@@ -59,8 +59,9 @@ class EmailHandler(tornado.web.RequestHandler):
         race_duration = d["time"]
         from_name = d["fullname"]
         to_name = d["toname"]
-        body = "Dear %s,\n\nI made this picture in %s seconds! http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png\n\nLove,\n%s"%(to_name, race_duration, img_hash, from_name)
-        ses_Conn.send_email("pillow.computing.consortium@gmail.com", "I <3 U", body, ["lane@rscheme.org"])
+        text_body = "Dear %s,\n\nI made this picture in %s seconds! http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png\n\nLove,\n%s"%(to_name, race_duration, img_hash, from_name)
+        html_body = "<html><body>%s <img src='http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png'></img></body></html>"%(text_body, img_hash)
+        ses_Conn.send_email("pillow.computing.consortium@gmail.com", "I <3 U", None, ["lane@rscheme.org"], html_body=html_body, text_body=text_body)
         self.write("OK")
         pass
 

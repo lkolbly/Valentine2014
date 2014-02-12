@@ -345,7 +345,7 @@ $j(function() {
 			    //alert("Got: "+msg);
 			    var source = $j("#email-dialog-tpl").html();
 			    var template = Handlebars.compile(source);
-			    var ctx = {url: img_url};
+			    var ctx = {url: img_url, time: total_tm/1000};
 			    var s = template(ctx);
 			    renderer.controls.enabled = false;
 			    $j("body").append(s);
