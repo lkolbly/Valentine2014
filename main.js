@@ -341,30 +341,38 @@ $j(function() {
 		    total_tm = total_tm.getTime() - start_tm;
 		    alert("Total time: "+total_tm);
 		    if (confirm("Do you want to make a picture?")) {
+			function gotImageURL(img_url) {
+			    //alert("Got: "+msg);
+			    var source = $j("#email-dialog-tpl").html();
+			    var template = Handlebars.compile(source);
+			    var ctx = {url: img_url};
+			    var s = template(ctx);
+			    renderer.controls.enabled = false;
+			    $j("body").append(s);
+			    $j("#email-dialog").dialog({
+				width: 600,
+				height: 600,
+				resizeable: false
+			    });
+			    $j("#send-email").click(function() {
+				var d = {};
+				d.to_email = prompt("To what email address?");
+				d.img_hash = img_url;
+				d.time = total_tm/1000.0;
+				d.fullname = prompt("What is your name (to sign the message)?");
+				d.toname = prompt("What name should the message be to?");
+				$j.ajax({type: "POST",
+					 url: "http://localhost:1415/email",
+					 processData: false,
+					 data: JSON.stringify(d)});
+			    });
+			}
 			$j.ajax({ type: "POST",
 				  url: "http://localhost:1415/image",
 				  processData: false,
 				  data: JSON.stringify({points: plane.getTrailLog()})
 				}).done(function(msg) {
-				    //alert("Got: "+msg);
-				    var source = $j("#email-dialog-tpl").html();
-				    var template = Handlebars.compile(source);
-				    var ctx = {url: msg};
-				    var s = template(ctx);
-				    renderer.controls.enabled = false;
-				    $j("body").append(s);
-				    $j("#email-dialog").dialog({
-					width: "512px",
-					height: "512px",
-					resizeable: false
-				    });
-				    $j("#send-email").click(function() {
-					var email = prompt("To what email address?");
-					$j.ajax({type: "POST",
-						 url: "http://localhost:1415/email",
-						 processData: false,
-						 data: msg});
-				    });
+				    gotImageURL(msg);
 				});
 		    }
 		}

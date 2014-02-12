@@ -5,10 +5,14 @@ import Image, ImageDraw
 import random
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key as S3Key
+import boto.ses
 
 aws_creds = json.loads(open("aws.config.json").read())
 s3_Conn = S3Connection(aws_creds["accessKeyId"], aws_creds["secretAccessKey"])
 s3_Bucket = s3_Conn.get_bucket("pillow.rscheme.org")
+
+ses_Conn = boto.ses.connect_to_region("us-east-1", aws_access_key_id=aws_creds["accessKeyId"], aws_secret_access_key=aws_creds["secretAccessKey"])
+#ses_Conn.send_email("lane@rscheme.org", "I <3 U", "This is a body!", ["lane@rscheme.org"])
 
 class MainHandler(tornado.web.RequestHandler):
     def get(self):
@@ -46,9 +50,24 @@ class ImageHandler(tornado.web.RequestHandler):
         print url
         pass
 
+class EmailHandler(tornado.web.RequestHandler):
+    def post(self):
+        self.add_header("Access-Control-Allow-Origin", "*");
+        d = json.loads(self.request.body)
+        to_email = d["to_email"]
+        img_hash = d["img_hash"]
+        race_duration = d["time"]
+        from_name = d["fullname"]
+        to_name = d["toname"]
+        body = "Dear %s,\n\nI made this picture in %s seconds! http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png\n\nLove,\n%s"%(to_name, race_duration, img_hash, from_name)
+        ses_Conn.send_email("pillow.computing.consortium@gmail.com", "I <3 U", body, ["lane@rscheme.org"])
+        self.write("OK")
+        pass
+
 application = tornado.web.Application([
     (r"/", MainHandler),
     (r"/image", ImageHandler),
+    (r"/email", EmailHandler),
 ])
 
 if __name__ == "__main__":
