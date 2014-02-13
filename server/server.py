@@ -18,18 +18,51 @@ class MainHandler(tornado.web.RequestHandler):
     def get(self):
         self.write("Hello, world")
 
+def scale(v, a, b, A, B):
+    return (v-a)/(b-a) * (B-A) + A
+
 class ImageHandler(tornado.web.RequestHandler):
     def get(self):
         self.write(open("image.png").read())
 
     def post(self):
         d = json.loads(self.request.body)
-        out = Image.new("RGB", (512, 512), "white")
+        IMG_SIZE = (512,512)
+        out = Image.new("RGB", IMG_SIZE, "white")
 
         # Pull all the points into two-space
         pnts = []
         for p in d["points"]:
-            pnts.append((p["x"], p["y"]))
+            pnts.append((-p["z"], -p["y"]))
+
+        # Find the extrema of the points
+        min_pnt = [pnts[0][0], pnts[0][1]]
+        max_pnt = [pnts[0][0], pnts[0][1]]
+        for p in pnts:
+            if p[0] < min_pnt[0]:
+                min_pnt[0] = p[0]
+            if p[0] > max_pnt[0]:
+                max_pnt[0] = p[0]
+            if p[1] < min_pnt[1]:
+                min_pnt[1] = p[1]
+            if p[1] > max_pnt[1]:
+                max_pnt[1] = p[1]
+        min_pnt[0] -= 1
+        min_pnt[1] -= 1
+        max_pnt[0] += 1
+        max_pnt[1] += 1
+
+        # Compute the offset & scale factor
+        """offset = [0,0]#min_pnt
+        scale = [float(max_pnt[0]-min_pnt[0])/512.0,
+                 float(max_pnt[0]-min_pnt[0])/512.0]"""
+
+        # Apply said transform
+        """print offset
+        print scale"""
+        for i in range(len(pnts)):
+            pnts[i] = (scale(pnts[i][0], min_pnt[0], max_pnt[0], 0, 512),
+                       scale(pnts[i][1], min_pnt[1], max_pnt[1], 0, 512))
 
         # Render the image
         imdraw = ImageDraw.Draw(out)
@@ -40,7 +73,8 @@ class ImageHandler(tornado.web.RequestHandler):
         out.save("image.png")
         url = ""
         for i in range(15):
-            url += random.choice("abcdefghijklmnopqrstuvwxyz")
+            url += random.choice("0123456789abcdef")
+        open("body_"+url, "w").write(self.request.body)
         k = S3Key(s3_Bucket)
         k.key = "valentines-2014/"+url+".png"
         k.set_contents_from_filename("image.png")
@@ -59,9 +93,9 @@ class EmailHandler(tornado.web.RequestHandler):
         race_duration = d["time"]
         from_name = d["fullname"]
         to_name = d["toname"]
-        text_body = "Dear %s,\n\nI made this picture in %s seconds! http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png\n\nLove,\n%s"%(to_name, race_duration, img_hash, from_name)
+        text_body = "Dear %s,\n\nI made this picture in %s seconds! http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png\n\nWith love,\n%s"%(to_name, race_duration, img_hash, from_name)
         html_body = "<html><body>%s <img src='http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png'></img></body></html>"%(text_body, img_hash)
-        ses_Conn.send_email("pillow.computing.consortium@gmail.com", "I <3 U", None, ["lane@rscheme.org"], html_body=html_body, text_body=text_body)
+        ses_Conn.send_email("pillow.computing.consortium@gmail.com", "I <3 U", None, [to_email], html_body=html_body, text_body=text_body)
         self.write("OK")
         pass
 
@@ -72,5 +106,5 @@ application = tornado.web.Application([
 ])
 
 if __name__ == "__main__":
-    application.listen(1414)
+    application.listen(1415)
     tornado.ioloop.IOLoop.instance().start()

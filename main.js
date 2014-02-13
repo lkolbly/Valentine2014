@@ -96,6 +96,7 @@ var Path = Class.create({
 	    var obj = self.model.clone();//new THREE.Object3D();
 	    //obj.add(self.model);
 	    obj.position.copy(p.pos);
+	    obj.scale.copy(new THREE.Vector3(10,10,10));
 
 	    if (i > 0 && i+1<points.length) {
 		var at = points[i+1].pos.clone().sub(points[i-1].pos).add(points[i].pos);
@@ -119,11 +120,11 @@ var Path = Class.create({
 	// Check the distance to the last one
 	var last_dist = player_pos.distanceTo(this.points[this.points.length-1].pos);
 	if (!this.has_entered_last) {
-	    if (last_dist < 5.0) {
+	    if (last_dist < 50.0) {
 		this.has_entered_last = true;
 	    }
 	} else {
-	    if (last_dist > 6.0) {
+	    if (last_dist > 60.0) {
 		return true;
 	    }
 	}
@@ -131,7 +132,7 @@ var Path = Class.create({
 	// Check the distance to all points, make sure we're at least *near* points
 	for (var i=0; i<this.points.length; i++) {
 	    var dist = player_pos.distanceTo(this.points[i].pos);
-	    if (dist < 100.0) break;
+	    if (dist < 1000.0) break;
 	}
 	if (i == this.points.length) return true;
 	return false;
@@ -291,7 +292,54 @@ var FlightControls = Class.create({
     }
 });
 
+// success gets passed the 1-time token to pass to the server as proof
+function pillow_require_captcha(n, success, fail) {
+    $j.ajax({
+	url: "http://pillow.rscheme.org/captcha/captcha.php?n="+n
+    }).done(function(token) {
+	var s = "<div id='pillow-captcha-popup'>Check the cats:";
+	s += "<table>";
+	for (var i=0; i<n; i++) {
+	    s += "<tr><td><input type='checkbox' id='pillow-captcha-check-"+i+"'/></td>";
+	    s += "<td><img src='http://pillow.rscheme.org/captcha/captcha-image.php?token="+token+"&n="+i+"' width='128px' height='128px'/></td></tr>";
+	}
+	s += "</table>";
+	s += "<button id='pillow-captcha-submit'>Submit!</button>";
+	s += "</div>";
+	$j("body").append(s);
+	$j("#pillow-captcha-popup").dialog();
+	$j("#pillow-captcha-submit").click(function() {
+	    var guess = "";
+	    for (var i=0; i<n; i++) {
+		if ($j("#pillow-captcha-check-"+i).is(":checked")) {
+		    guess += "c";
+		} else {
+		    guess += "d";
+		}
+	    }
+	    $j.ajax({
+		url: "http://pillow.rscheme.org/captcha/submit.php?token="+token+"&answer="+guess
+	    }).done(function(msg) {
+		$j("#pillow-captcha-popup").dialog("close");
+		$j("#pillow-captcha-popup").remove();
+		if (msg === "yes") {
+		    if (success) success(token);
+		} else {
+		    if (fail) fail();
+		}
+	    });
+	});
+    });
+}
+
 $j(function() {
+    /*pillow_require_captcha(4, function(token) {
+	alert("success: "+token);
+    }, function() {
+	alert("failure");
+    });
+    return;*/
+
     console.log("Ready to roll");
 
     var renderer = new Renderer();
@@ -300,12 +348,12 @@ $j(function() {
     var flightcontrols = new FlightControls(plane);
     setTimeout(function() { // TODO: Make this "on loaded"
 	points = [];
-	var s = "lane"; // TODO: Make this configurable
+	var s = "elissa"; // TODO: Make this configurable
 	var dp = new THREE.Vector3(0,0,0);
 	for (var j=0; j<s.length; j++) {
 	    for (var i=0; i<letter_Definitions[s.charAt(j)].length; i++) {
 		p = letter_Definitions[s.charAt(j)][i];
-		var v = new THREE.Vector3(p.z,-p.y,-p.x);
+		var v = new THREE.Vector3(10*p.z,-p.y*10,-p.x*10);
 		v.add(dp);
 		points.push({pos: v});
 	    }
@@ -355,6 +403,7 @@ $j(function() {
 				resizeable: false
 			    });
 			    $j("#send-email").click(function() {
+				function captcha_success() {
 				var d = {};
 				d.to_email = prompt("To what email address?");
 				d.img_hash = img_url;
@@ -365,6 +414,13 @@ $j(function() {
 					 url: "http://localhost:1415/email",
 					 processData: false,
 					 data: JSON.stringify(d)});
+				}
+				function captcha_error() {
+				    pillow_require_captcha(4, captcha_success,
+							   captcha_error);
+				}
+				pillow_require_captcha(4, captcha_success,
+						       captcha_error);
 			    });
 			}
 			$j.ajax({ type: "POST",
