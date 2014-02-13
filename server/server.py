@@ -5,7 +5,10 @@ import Image, ImageDraw
 import random
 from boto.s3.connection import S3Connection
 from boto.s3.key import Key as S3Key
+import tornado.gen
+import tornado.httpclient
 import boto.ses
+import pybars
 
 aws_creds = json.loads(open("aws.config.json").read())
 s3_Conn = S3Connection(aws_creds["accessKeyId"], aws_creds["secretAccessKey"])
@@ -85,16 +88,38 @@ class ImageHandler(tornado.web.RequestHandler):
         pass
 
 class EmailHandler(tornado.web.RequestHandler):
+    @tornado.gen.coroutine
     def post(self):
         self.add_header("Access-Control-Allow-Origin", "*");
         d = json.loads(self.request.body)
+        captcha_token = d["captcha_token"]
+        http_client = tornado.httpclient.AsyncHTTPClient()
+        captcha_response = yield http_client.fetch("http://pillow.rscheme.org/captcha/verify.php?token=%s"%captcha_token)
+
+        if captcha_response.body == "no":
+            self.write("INVALID CAPTCHA")
+            return
+
         to_email = d["to_email"]
         img_hash = d["img_hash"]
+        #open("tmp/email_%s"+img_hash, "w").write(self.request.body)
         race_duration = d["time"]
         from_name = d["fullname"]
         to_name = d["toname"]
-        text_body = "Dear %s,\n\nI made this picture in %s seconds! http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png\n\nWith love,\n%s"%(to_name, race_duration, img_hash, from_name)
-        html_body = "<html><body>%s <img src='http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png'></img></body></html>"%(text_body, img_hash)
+        compiler = pybars.Compiler()
+
+        source = unicode(open("text-email.hbs").read())
+        text_body = str("".join(compiler.compile(source)(d)))
+        #text_body = ""
+
+        source = unicode(open("html-email.hbs").read())
+        #print source
+        html_body2 = compiler.compile(source)
+        html_body = str("".join(html_body2(d)))
+
+        #text_body = "Dear %s,\n\nI made this picture in %s seconds! http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png\n\nWith love,\n%s"%(to_name, race_duration, img_hash, from_name)
+        #html_body = "<html><body>%s <img src='http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png'></img></body></html>"%(text_body, img_hash)
+        #print html_body
         ses_Conn.send_email("pillow.computing.consortium@gmail.com", "I <3 U", None, [to_email], html_body=html_body, text_body=text_body)
         self.write("OK")
         pass

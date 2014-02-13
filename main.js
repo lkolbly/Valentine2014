@@ -332,14 +332,7 @@ function pillow_require_captcha(n, success, fail) {
     });
 }
 
-$j(function() {
-    /*pillow_require_captcha(4, function(token) {
-	alert("success: "+token);
-    }, function() {
-	alert("failure");
-    });
-    return;*/
-
+function startGame() {
     console.log("Ready to roll");
 
     var renderer = new Renderer();
@@ -403,17 +396,18 @@ $j(function() {
 				resizeable: false
 			    });
 			    $j("#send-email").click(function() {
-				function captcha_success() {
-				var d = {};
-				d.to_email = prompt("To what email address?");
-				d.img_hash = img_url;
-				d.time = total_tm/1000.0;
-				d.fullname = prompt("What is your name (to sign the message)?");
-				d.toname = prompt("What name should the message be to?");
-				$j.ajax({type: "POST",
-					 url: "http://localhost:1415/email",
-					 processData: false,
-					 data: JSON.stringify(d)});
+				function captcha_success(token) {
+				    var d = {};
+				    d.captcha_token = token;
+				    d.to_email = prompt("To what email address?");
+				    d.img_hash = img_url;
+				    d.time = total_tm/1000.0;
+				    d.fullname = prompt("What is your name (to sign the message)?");
+				    d.toname = prompt("What name should the message be to?");
+				    $j.ajax({type: "POST",
+					     url: "http://localhost:1415/email",
+					     processData: false,
+					     data: JSON.stringify(d)});
 				}
 				function captcha_error() {
 				    pillow_require_captcha(4, captcha_success,
@@ -438,4 +432,37 @@ $j(function() {
 	}
 	render();
     }, 1000);
+}
+
+$j(function() {
+    /*pillow_require_captcha(4, function(token) {
+	alert("success: "+token);
+    }, function() {
+	alert("failure");
+    });
+    return;*/
+
+    function showPage(n) {
+	var source = $j("#welcome-page-"+n).html();
+	if (source === undefined) {
+	    // Go for gold
+	    $j("body").html("");
+	    startGame();
+	    return;
+	}
+	var template = Handlebars.compile(source);
+	var ctx = {};
+	var s = template(ctx);
+	$j("#content").html(s);
+	$j("#next").click(function() {
+	    showPage(n+1);
+	});
+    }
+
+    var source = $j("#welcome-page").html();
+    var template = Handlebars.compile(source);
+    $j("body").html(template());
+    showPage(1);
+
+    return
 });
