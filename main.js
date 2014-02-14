@@ -3,7 +3,7 @@ var $j = jQuery.noConflict();
 var Renderer = Class.create({
     initialize: function() {
 	this.scene = new THREE.Scene();
-	this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+	this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1.0, 10000);
 	this.renderer = new THREE.WebGLRenderer({});
 	this.renderer.setSize(window.innerWidth, window.innerHeight);
 	document.body.appendChild(this.renderer.domElement);
@@ -33,6 +33,12 @@ var Renderer = Class.create({
 	var self = this;
 	this.loadingMgr = new THREE.LoadingManager();
 	//this.loadObj("heart");
+
+	this.was_paused = false;
+	//this.timer = 0.0;
+
+	var s = "<div id='timer' style='position:fixed;top:0;right:0;color:white;font-size:18px'></div>";
+	$j("body").append(s);
     },
 
     setupOrbitControls: function() {
@@ -85,7 +91,26 @@ var Renderer = Class.create({
 	});
     },
 
-    render: function(dt) {
+    render: function(dt, paused, timer) {
+	if (paused===true && this.was_paused===false) {
+	    var source = $j("#pause-overlay-tpl").html();
+	    var template = Handlebars.compile(source);
+	    $j("body").append(template());
+	} else if (paused===false && this.was_paused===false) {
+	    $j("#pause-overlay").remove();
+	}
+	this.was_paused = paused;
+
+	//console.log(timer);
+	minutes = Math.floor(timer / 60);
+	if (minutes < 10) minutes = "0"+minutes;
+	seconds = Math.floor(timer - minutes*60);
+	if (seconds < 10) seconds = "0"+seconds;
+	hundreths = Math.floor((timer - minutes*60 - seconds)*100);
+	if (hundreths < 10) hundreths = "0"+hundreths;
+	else if (hundreths < 100) hundreths = ""+hundreths;
+	$j("#timer").html(""+minutes+":"+seconds+":"+hundreths);
+
 	if (this.renderer === undefined) return;
 	this.renderer.render(this.scene, this.camera);
     }
@@ -238,6 +263,9 @@ var Plane = Class.create({
 
 	this.vel = new THREE.Vector3(0,0,60);
 	this.airbrake_pos = 0.0;
+
+	this.MIN_THROTTLE = 30.0;
+	this.MAX_THROTTLE = 240.0;
     },
 
     getPos: function() {
@@ -305,12 +333,17 @@ var Plane = Class.create({
 	this.getObj().rotateOnAxis(new THREE.Vector3(0,0,1), this.roll*dt);
 	this.getObj().rotateOnAxis(new THREE.Vector3(0,1,0), this.yaw*dt);
 
+	if (this.vel.length() > this.MAX_THROTTLE)
+	    this.throttle = Math.min(this.throttle, 0.0);
+	if (this.vel.length() < this.MIN_THROTTLE)
+	    this.throttle = Math.max(this.throttle, 0.0);
 	this.vel.multiplyScalar(1.0+this.throttle*1.0*dt);
+
 	//console.log(this.getObj().children[0].getObjectById("exhaust_ifs_TRANSFORM"));
 	//console.log(getChildByName(this.getObj(), "exhaust_ifs_TRANSFORM"));
 	//debugger;
 	var s = this.vel.length() / 60.0;
-	getChildByName(this.getObj(), "exhaust_ifs_TRANSFORM").scale.copy(new THREE.Vector3(s,s,s));
+	getChildByName(this.getObj(), "exhaust_ifs_TRANSFORM").scale.copy(new THREE.Vector3(1-Math.pow(0.5,s),1-Math.pow(0.5,s),s));
 	//console.log(s);
 
 	var d_airbrake = 0.0;
@@ -336,9 +369,12 @@ var Plane = Class.create({
 	//.localToWorld(this.vel).clone().sub(this.getObj().position);
 	//console.log(global_vel);
 
-	this.elevator = 0.0;
-	this.roll = 0.0;
-	this.yaw = 0.0;
+	//this.elevator = 0.0;
+	this.elevator += -this.elevator*dt*5.0;
+	this.roll += -this.roll*dt*7.0;
+	this.yaw += -this.yaw*dt*5.0;
+	//this.roll = 0.0;
+	//this.yaw = 0.0;
 
 	this.setPos(this.getPos().add(global_vel.clone().multiplyScalar(dt)));
 
@@ -371,6 +407,9 @@ var FlightControls = Class.create({
 	});
 	$j("body").keyup(function(e) {
 	    self.downkeys.splice(self.downkeys.indexOf(e.keyCode), 1);
+	    if (e.keyCode === self.PAUSE_KEY) {
+		self.is_paused = !self.is_paused;
+	    }
 	});
 
 	this.ELEVATE_UP_KEY = 83; // S
@@ -381,21 +420,24 @@ var FlightControls = Class.create({
 	this.YAW_RIGHT_KEY = 88; // X
 	this.THROTTLE_UP_KEY = 82; // R
 	this.THROTTLE_DOWN_KEY = 70; // F
+	this.PAUSE_KEY = 80; // P
+
+	this.is_paused = false;
     },
 
     update: function(dt) {
 	if (this.downkeys.indexOf(this.ROLL_LEFT_KEY) !== -1)
-	    this.plane.applyRoll(-2.0);
+	    this.plane.applyRoll(-15.0*dt);
 	if (this.downkeys.indexOf(this.ROLL_RIGHT_KEY) !== -1)
-	    this.plane.applyRoll(2.0);
+	    this.plane.applyRoll(15.0*dt);
 	if (this.downkeys.indexOf(this.YAW_LEFT_KEY) !== -1)
-	    this.plane.applyYaw(1.5);
+	    this.plane.applyYaw(3.0*dt);
 	if (this.downkeys.indexOf(this.YAW_RIGHT_KEY) !== -1)
-	    this.plane.applyYaw(-1.5);
+	    this.plane.applyYaw(-3.0*dt);
 	if (this.downkeys.indexOf(this.ELEVATE_UP_KEY) !== -1)
-	    this.plane.applyElevator(1.0);
+	    this.plane.applyElevator(6.0*dt);
 	if (this.downkeys.indexOf(this.ELEVATE_DOWN_KEY) !== -1)
-	    this.plane.applyElevator(-1.0);
+	    this.plane.applyElevator(-6.0*dt);
 	if (this.downkeys.indexOf(this.THROTTLE_DOWN_KEY) !== -1)
 	    this.plane.applyThrottle(-1.0);
 	if (this.downkeys.indexOf(this.THROTTLE_UP_KEY) !== -1)
@@ -469,7 +511,7 @@ function startGame(chosen_name) {
 	    console.log(dp);
 	}
 
-	for (var i=0; i<letter_Definitions.heart.length; i++) {
+	for (var i=1; i<letter_Definitions.heart.length; i++) {
 	    p = letter_Definitions.heart[i];
 	    var v = new THREE.Vector3(10*p.z,-p.y*10,-p.x*10);
 	    v.multiplyScalar(s.length/6);
@@ -555,7 +597,8 @@ function startGame(chosen_name) {
 	var has_finished = false;
 	var start_tm = getTime();
 	var dt = 0.02;
-	var last_tm = getTime();;
+	var last_tm = getTime();
+	var total_tm = 0.0;
 	function render() {
 	    if (plane.getObj() === undefined) {
 		setTimeout(render, 20);
@@ -565,6 +608,10 @@ function startGame(chosen_name) {
 	    //console.log(getTime()-last_tm);
 	    dt = (getTime()-last_tm)/1000.0;
 	    last_tm = getTime();
+	    //console.log(total_tm+" "+dt);
+
+	    if (flightcontrols.is_paused === false) {
+	    total_tm += dt;
 
 	    if (has_finished === false) {
 		flightcontrols.update(dt);
@@ -574,8 +621,8 @@ function startGame(chosen_name) {
 		    has_finished = true;
 
 		    renderer.controls.enabled = false;
-		    var total_tm = new Date();
-		    total_tm = total_tm.getTime() - start_tm;
+		    //var total_tm = new Date();
+		    //total_tm = total_tm.getTime() - start_tm;
 		    if (true) {//confirm("Do you want to make a picture?")) {
 			$j.ajax({ type: "POST",
 				  url: "http://localhost:1415/image",
@@ -585,12 +632,13 @@ function startGame(chosen_name) {
 				    gotImageURL(msg, total_tm);
 				});
 		    }
-		    alert("You finished in: "+(total_tm/1000)+" seconds!");
+		    alert("You finished in: "+(total_tm)+" seconds!");
 		    $j("canvas").hide();
 		    $j("#loading-spinner").show();
 		}
 	    }
-	    renderer.render(dt);
+	    }
+	    renderer.render(dt, flightcontrols.is_paused, total_tm);
 	    setTimeout(render, 20);
 	}
 	render();
@@ -658,6 +706,13 @@ $j(function() {
 	if (source === undefined) {
 	    // Go for gold
 	    $j("body").html("");
+
+	    if (!Detector.webgl) {
+		alert("Your browser doesn't support WebGL!");
+		window.location("http://get.webgl.com/");
+		return;
+	    }
+
 	    startGame(chosen_name);
 	    return;
 	}
