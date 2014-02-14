@@ -50,8 +50,8 @@ var Renderer = Class.create({
                     node.material.side = THREE.DoubleSide;
                     node.material.shading = THREE.FlatShading;
                     /*if (options.shadeSmooth) {
-                        node.material.shading = THREE.SmoothShading;
-                    }*/
+                      node.material.shading = THREE.SmoothShading;
+                      }*/
                 }
                 if (node.geometry) {
                     node.geometry.computeVertexNormals();
@@ -72,8 +72,8 @@ var Renderer = Class.create({
                     node.material.side = THREE.DoubleSide;
                     node.material.shading = THREE.FlatShading;
                     /*if (options.shadeSmooth) {
-                        node.material.shading = THREE.SmoothShading;
-                    }*/
+                      node.material.shading = THREE.SmoothShading;
+                      }*/
                 }
                 if (node.geometry) {
                     node.geometry.computeVertexNormals();
@@ -151,9 +151,9 @@ var Path = Class.create({
     update: function(dt, player_pos) {
 	// Check to see if they've finished
 	/*if (player_pos.z > 40.0) {
-	    console.log("They're done!");
-	    return true;
-	}*/
+	  console.log("They're done!");
+	  return true;
+	  }*/
 
 	// See where the next point is
 	if (player_pos.distanceTo(this.nextPointPos()) < 60.0) {
@@ -333,7 +333,7 @@ var Plane = Class.create({
 	//this.getObj().matrix.extractRotation(m)
 	m.extractRotation(this.getObj().matrix);
 	var global_vel = this.vel.clone().applyMatrix4(m);
-//.localToWorld(this.vel).clone().sub(this.getObj().position);
+	//.localToWorld(this.vel).clone().sub(this.getObj().position);
 	//console.log(global_vel);
 
 	this.elevator = 0.0;
@@ -450,7 +450,7 @@ function startGame(chosen_name) {
     var path = new Path(renderer);
     var plane = new Plane(renderer, path);
     var flightcontrols = new FlightControls(plane);
-    setTimeout(function() { // TODO: Make this "on loaded"
+    function onLoad() {
 	points = [];
 	var debug_pnts = [];
 	var s = chosen_name;
@@ -469,16 +469,16 @@ function startGame(chosen_name) {
 	    console.log(dp);
 	}
 
-	    for (var i=0; i<letter_Definitions.heart.length; i++) {
-		p = letter_Definitions.heart[i];
-		var v = new THREE.Vector3(10*p.z,-p.y*10,-p.x*10);
-		v.multiplyScalar(s.length/6);
-		v.add(dp);
-		points.push({pos: v});
-		debug_pnts.push(v);
-	    }
-	    dp.copy(points[points.length-1].pos);
-	    console.log(dp);
+	for (var i=0; i<letter_Definitions.heart.length; i++) {
+	    p = letter_Definitions.heart[i];
+	    var v = new THREE.Vector3(10*p.z,-p.y*10,-p.x*10);
+	    v.multiplyScalar(s.length/6);
+	    v.add(dp);
+	    points.push({pos: v});
+	    debug_pnts.push(v);
+	}
+	dp.copy(points[points.length-1].pos);
+	console.log(dp);
 
 	path.setPath(points);
 	//path.setPath([{pos:new THREE.Vector3(0,0,10)}, {pos:new THREE.Vector3(0,0,20)}, {pos:new THREE.Vector3(0,0,30)}]);
@@ -490,62 +490,62 @@ function startGame(chosen_name) {
 	console.log(at);
 	plane.setAt(at);
 
-			function gotImageURL(img_url, total_tm) {
-			    //alert("Got: "+msg);
-			    var source = $j("#email-dialog-tpl").html();
-			    var template = Handlebars.compile(source);
-			    var ctx = {url: img_url, time: total_tm/1000};
-			    var s = template(ctx);
-			    $j("body").append(s);
-			    $j("#email-dialog").dialog({
-				width: 600,
-				height: 600,
-				resizeable: false
-			    });
-			    $j("#send-email").click(function() {
-				function captcha_success(token) {
-				    var source = $j("#send-email-tpl").html();
-				    var template = Handlebars.compile(source);
-				    var s = template();
-				    $j("body").append(s);
-				    $j("#send-email-dialog").dialog({
-					width: 500
-				    });
-				    $j("#send-email-submit").click(function() {
-					var d = {};
-					d.captcha_token = token;
-					d.to_email = $j("#email-address").val();//prompt("To what email address?");
-					d.img_hash = img_url;
-					d.time = total_tm/1000.0;
-					d.fullname = $j("#fromname").val();//prompt("What is your name (to sign the message)?");
-					d.toname = $j("#toname").val();//prompt("What name should the message be to?");
-					d.message = $j("#message").val();
-					$j.ajax({type: "POST",
-						 url: "http://localhost:1415/email",
-						 processData: false,
-						 data: JSON.stringify(d)});
+	function gotImageURL(img_url, total_tm) {
+	    //alert("Got: "+msg);
+	    var source = $j("#email-dialog-tpl").html();
+	    var template = Handlebars.compile(source);
+	    var ctx = {url: img_url, time: total_tm/1000};
+	    var s = template(ctx);
+	    $j("body").append(s);
+	    $j("#email-dialog").dialog({
+		width: 600,
+		height: 600,
+		resizeable: false
+	    });
+	    $j("#send-email").click(function() {
+		function captcha_success(token) {
+		    var source = $j("#send-email-tpl").html();
+		    var template = Handlebars.compile(source);
+		    var s = template();
+		    $j("body").append(s);
+		    $j("#send-email-dialog").dialog({
+			width: 500
+		    });
+		    $j("#send-email-submit").click(function() {
+			var d = {};
+			d.captcha_token = token;
+			d.to_email = $j("#email-address").val();//prompt("To what email address?");
+			d.img_hash = img_url;
+			d.time = total_tm/1000.0;
+			d.fullname = $j("#fromname").val();//prompt("What is your name (to sign the message)?");
+			d.toname = $j("#toname").val();//prompt("What name should the message be to?");
+			d.message = $j("#message").val();
+			$j.ajax({type: "POST",
+				 url: "http://localhost:1415/email",
+				 processData: false,
+				 data: JSON.stringify(d)});
 
-					$j("#send-email-dialog").remove();
-				    });
-				}
-				function captcha_error() {
-				    pillow_require_captcha(4, captcha_success,
-							   captcha_error);
-				}
-				pillow_require_captcha(4, captcha_success,
-						       captcha_error);
-			    });
-			}
+			$j("#send-email-dialog").remove();
+		    });
+		}
+		function captcha_error() {
+		    pillow_require_captcha(4, captcha_success,
+					   captcha_error);
+		}
+		pillow_require_captcha(4, captcha_success,
+				       captcha_error);
+	    });
+	}
 
 	// To test our setup, uncomment this
 	/*$j.ajax({ type: "POST",
-		  url: "http://localhost:1415/image",
-		  processData: false,
-		  data: JSON.stringify({points: debug_pnts})
-		}).done(function(msg) {
-		    gotImageURL(msg, 360000.0);
-		});
-	return;*/
+	  url: "http://localhost:1415/image",
+	  processData: false,
+	  data: JSON.stringify({points: debug_pnts})
+	  }).done(function(msg) {
+	  gotImageURL(msg, 360000.0);
+	  });
+	  return;*/
 
 	function getTime() {
 	    var d = new Date();
@@ -585,23 +585,71 @@ function startGame(chosen_name) {
 				    gotImageURL(msg, total_tm);
 				});
 		    }
-		    alert("You finished in: "+total_tm+"!");
+		    alert("You finished in: "+(total_tm/1000)+" seconds!");
+		    $j("canvas").hide();
+		    $j("#loading-spinner").show();
 		}
 	    }
 	    renderer.render(dt);
 	    setTimeout(render, 20);
 	}
 	render();
-    }, 1000);
+    }
+
+    var source = $j("#loading-screen-tpl").html();
+    var template = Handlebars.compile(source);
+    var s = template();
+    $j("body").append(s);
+
+    var opts = {
+	lines: 11, // The number of lines to draw
+	length: 0, // The length of each line
+	width: 13, // The line thickness
+	radius: 30, // The radius of the inner circle
+	corners: 1, // Corner roundness (0..1)
+	rotate: 0, // The rotation offset
+	direction: 1, // 1: clockwise, -1: counterclockwise
+	color: '#fff', // #rgb or #rrggbb or array of colors
+	speed: 0.8, // Rounds per second
+	trail: 50, // Afterglow percentage
+	shadow: false, // Whether to render a shadow
+	hwaccel: false, // Whether to use hardware acceleration
+	className: 'spinner', // The CSS class to assign to the spinner
+	zIndex: 2e9, // The z-index (defaults to 2000000000)
+	top: 'auto', // Top position relative to parent in px
+	left: 'auto' // Left position relative to parent in px
+    };
+    var target = document.getElementById('loading-spinner');
+    var spinner = new Spinner(opts).spin(target);
+
+    function checkLoaded() {
+	// Check to see if we've loaded
+	var has_loaded = true;
+	console.log("Checking for loaded...");
+	if (path.model === null) has_loaded = false;
+	if (plane.heart === null) has_loaded = false;
+	if (plane.cone === null) has_loaded = false;
+	if (plane.getObj() === undefined) has_loaded = false;
+	//has_loaded = false;
+
+	if (has_loaded === true) {
+	    $j("#loading-spinner").hide();
+	    onLoad();
+	} else {
+	    setTimeout(checkLoaded, 100);
+	}
+    }
+
+    setTimeout(checkLoaded, 100);
 }
 
 $j(function() {
     /*pillow_require_captcha(4, function(token) {
-	alert("success: "+token);
-    }, function() {
-	alert("failure");
-    });
-    return;*/
+      alert("success: "+token);
+      }, function() {
+      alert("failure");
+      });
+      return;*/
 
     var chosen_name = "";
 
@@ -645,9 +693,9 @@ $j(function() {
 
 		// Validate the name...
 		/*while (validate(chosen_name) === false) {
-		    console.log(chosen_name);
-		    chosen_name = prompt("Warning: '"+chosen_name+"' is not valid");
-		}*/
+		  console.log(chosen_name);
+		  chosen_name = prompt("Warning: '"+chosen_name+"' is not valid");
+		  }*/
 		//showPage(n);
 		//has_error = true;
 		//return;
