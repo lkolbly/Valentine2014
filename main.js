@@ -1,5 +1,21 @@
 var $j = jQuery.noConflict();
 
+var SERVER_HOSTNAME = "pillow.rscheme.org";
+var SERVER_PORT = "5557";
+
+function formatSeconds(seconds) {
+    var timer = seconds;
+    minutes = Math.floor(timer / 60);
+    if (minutes < 10) minutes = "0"+minutes;
+    seconds = Math.floor(timer - minutes*60);
+    if (seconds < 10) seconds = "0"+seconds;
+    hundreths = Math.floor((timer - minutes*60 - seconds)*1000);
+    //if (hundreths < 1) hundreths = "000"+hundreths;
+    if (hundreths < 10) hundreths = "00"+hundreths;
+    else if (hundreths < 100) hundreths = "0"+hundreths;
+    return ""+minutes+":"+seconds+":"+hundreths;
+}
+
 var Renderer = Class.create({
     initialize: function() {
 	this.scene = new THREE.Scene();
@@ -102,14 +118,15 @@ var Renderer = Class.create({
 	this.was_paused = paused;
 
 	//console.log(timer);
-	minutes = Math.floor(timer / 60);
+	/*minutes = Math.floor(timer / 60);
 	if (minutes < 10) minutes = "0"+minutes;
 	seconds = Math.floor(timer - minutes*60);
 	if (seconds < 10) seconds = "0"+seconds;
 	hundreths = Math.floor((timer - minutes*60 - seconds)*100);
 	if (hundreths < 10) hundreths = "0"+hundreths;
 	else if (hundreths < 100) hundreths = ""+hundreths;
-	$j("#timer").html(""+minutes+":"+seconds+":"+hundreths);
+	$j("#timer").html(""+minutes+":"+seconds+":"+hundreths);*/
+	$j("#timer").html(formatSeconds(timer));
 
 	if (this.renderer === undefined) return;
 	this.renderer.render(this.scene, this.camera);
@@ -165,6 +182,12 @@ var Path = Class.create({
 		//at = new THREE.Vector3(1,1,1);
 		console.log("At: "+printvec(at)+" from "+printvec(points[i-1].pos)+" to "+printvec(points[i+1].pos));
 		obj.lookAt(at);
+	    } else if (i === 0) {
+		var at = points[i+1].pos.clone();
+		obj.lookAt(at);
+	    } else if (i === points.length-1) {
+		var at = points[i-1].pos.clone();
+		obj.lookAt(at);
 	    }
 
 	    this.renderer.scene.add(obj);
@@ -185,6 +208,17 @@ var Path = Class.create({
 	    this.next_point++;
 	    if (this.next_point >= this.points.length) {
 		this.next_point = 0;
+	    }
+	} else {
+	    // Let's check all of the remaining points, maybe the player jumped
+	    // ahead.
+	    for (var i=this.next_point; i<this.next_point+5; i++) {
+		if (i < this.points.length) {
+		    if (player_pos.distanceTo(this.points[i].pos) < 60.0) {
+			this.next_point = i;
+			break;
+		    }
+		}
 	    }
 	}
 
@@ -385,10 +419,11 @@ var Plane = Class.create({
 	var at = new THREE.Vector3(0,2,100);
 	at.applyMatrix4(m);//this.getObj().localToWorld(at);
 	at.add(this.getPos());
+	this.renderer.camera.position.copy(offset);
 	this.renderer.camera.lookAt(at);
+	this.renderer.camera.updateMatrixWorld();
 	//this.renderer.camera.matrixWorld.extractRotation(m);
 	//this.renderer.camera.updateMatrixWorld();
-	this.renderer.camera.position.copy(offset);
 
 	offset = this.renderer.camera.localToWorld(new THREE.Vector3(0,2,-10));
 	this.renderer.scene.getObjectByName("direction_cone").position.copy(offset);
@@ -536,7 +571,7 @@ function startGame(chosen_name) {
 	    //alert("Got: "+msg);
 	    var source = $j("#email-dialog-tpl").html();
 	    var template = Handlebars.compile(source);
-	    var ctx = {url: img_url, time: total_tm/1000};
+	    var ctx = {url: img_url, time: formatSeconds(total_tm)};
 	    var s = template(ctx);
 	    $j("body").append(s);
 	    $j("#email-dialog").dialog({
@@ -558,12 +593,12 @@ function startGame(chosen_name) {
 			d.captcha_token = token;
 			d.to_email = $j("#email-address").val();//prompt("To what email address?");
 			d.img_hash = img_url;
-			d.time = total_tm/1000.0;
+			d.time = formatSeconds(total_tm);
 			d.fullname = $j("#fromname").val();//prompt("What is your name (to sign the message)?");
 			d.toname = $j("#toname").val();//prompt("What name should the message be to?");
 			d.message = $j("#message").val();
 			$j.ajax({type: "POST",
-				 url: "http://localhost:1415/email",
+				 url: "http://"+SERVER_HOSTNAME+":"+SERVER_PORT+"/email",
 				 processData: false,
 				 data: JSON.stringify(d)});
 
@@ -611,9 +646,9 @@ function startGame(chosen_name) {
 	    //console.log(total_tm+" "+dt);
 
 	    if (flightcontrols.is_paused === false) {
-	    total_tm += dt;
 
 	    if (has_finished === false) {
+		total_tm += dt;
 		flightcontrols.update(dt);
 		plane.update(dt);
 		if (path.update(dt, plane.getPos()) === true) {
@@ -625,14 +660,14 @@ function startGame(chosen_name) {
 		    //total_tm = total_tm.getTime() - start_tm;
 		    if (true) {//confirm("Do you want to make a picture?")) {
 			$j.ajax({ type: "POST",
-				  url: "http://localhost:1415/image",
+				  url: "http://"+SERVER_HOSTNAME+":"+SERVER_PORT+"/image",
 				  processData: false,
 				  data: JSON.stringify({points: plane.getTrailLog()})
 				}).done(function(msg) {
 				    gotImageURL(msg, total_tm);
 				});
 		    }
-		    alert("You finished in: "+(total_tm)+" seconds!");
+		    alert("You finished in: "+formatSeconds(total_tm)+" seconds!");
 		    $j("canvas").hide();
 		    $j("#loading-spinner").show();
 		}
@@ -709,7 +744,7 @@ $j(function() {
 
 	    if (!Detector.webgl) {
 		alert("Your browser doesn't support WebGL!");
-		window.location("http://get.webgl.com/");
+		window.location = "http://get.webgl.com/";
 		return;
 	    }
 
@@ -720,7 +755,25 @@ $j(function() {
 	var ctx = {};
 	var s = template(ctx);
 	$j("#content").html(s);
+	$j("#back").off("click");
 	$j("#next").off("click");
+	$j("#goto").off("click");
+
+	if ($j("#welcome-page-"+(n+1)).html() === undefined) {
+	    $j("#goto").remove();
+	    $j("#next").html("Play");
+	} else {
+	    $j("#goto").click(function(e) {
+		console.log(e.target.attributes.getNamedItem("n"));
+		showPage(e.target.attributes.getNamedItem("n").value);
+	    });
+	}
+	$j("#back").click(function() {
+	    if (n-1 < 0)
+		showPage(0);
+	    else
+		showPage(n-1);
+	});
 	$j("#next").click(function() {
 	    var inp = $j("#name-input");
 	    if (inp.val() !== undefined) {

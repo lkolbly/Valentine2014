@@ -79,7 +79,7 @@ class ImageHandler(tornado.web.RequestHandler):
         url = ""
         for i in range(15):
             url += random.choice("0123456789abcdef")
-        open("body_"+url, "w").write(self.request.body)
+        #open("body_"+url, "w").write(self.request.body)
         k = S3Key(s3_Bucket)
         k.key = "valentines-2014/"+url+".png"
         k.set_contents_from_filename("image.png")
@@ -134,5 +134,5 @@ application = tornado.web.Application([
 ])
 
 if __name__ == "__main__":
-    application.listen(1415)
+    application.listen(5557)
     tornado.ioloop.IOLoop.instance().start()
