@@ -4,11 +4,19 @@
       <img src="http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/valentines-HAPPYVALENTINES-588491.png" style="width:600px"/>
       <div style="width:512px;margin-left:auto;margin-right:auto">
         <img width="512px" src="http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/{{img_hash}}.png"></img>
-        <p>I made this for you, {{toname}}.<br/>
-        <br/>With love,<br/>{{fullname}}
+        <p>
+          I drew this in {{time}} seconds, {{toname}}!<br/>
+          {{#if message}}
+            <br/>
+            {{message}}
+            <br/>
+          {{/if}}
+          <br/>
+          With love,<br/>
+          {{fullname}}
         </p>
       </div>
-      <span style="font-size:12px"><i>Proudly Pillow Powered</i></span>
+      <span style="font-size:12px"><i>Proudly Pillow Powered</i> Make your own at <a href="http://pillow.rscheme.org/valentines-2014/">http://pillow.rscheme.org/valentines-2014/</a></span>
     </div>
   </body>
 </html>

@@ -36,7 +36,8 @@ class ImageHandler(tornado.web.RequestHandler):
         # Pull all the points into two-space
         pnts = []
         for p in d["points"]:
-            pnts.append((-p["z"], -p["y"]))
+            #print p
+            pnts.append((float(-p["z"]), float(-p["y"])))
 
         # Find the extrema of the points
         min_pnt = [pnts[0][0], pnts[0][1]]
@@ -70,7 +71,8 @@ class ImageHandler(tornado.web.RequestHandler):
         # Render the image
         imdraw = ImageDraw.Draw(out)
         for i in xrange(len(pnts)-1):
-            imdraw.line(pnts[i]+pnts[i+1], fill=128)
+            imdraw.line(pnts[i]+pnts[i+1], fill=255)
+            #print pnts[i], pnts[i+1]
             pass
 
         out.save("image.png")
@@ -106,6 +108,7 @@ class EmailHandler(tornado.web.RequestHandler):
         race_duration = d["time"]
         from_name = d["fullname"]
         to_name = d["toname"]
+        message = d["message"]
         compiler = pybars.Compiler()
 
         source = unicode(open("text-email.hbs").read())
@@ -120,7 +123,7 @@ class EmailHandler(tornado.web.RequestHandler):
         #text_body = "Dear %s,\n\nI made this picture in %s seconds! http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png\n\nWith love,\n%s"%(to_name, race_duration, img_hash, from_name)
         #html_body = "<html><body>%s <img src='http://pillow.rscheme.org.s3-website-us-east-1.amazonaws.com/valentines-2014/%s.png'></img></body></html>"%(text_body, img_hash)
         #print html_body
-        ses_Conn.send_email("pillow.computing.consortium@gmail.com", "I <3 U", None, [to_email], html_body=html_body, text_body=text_body)
+        ses_Conn.send_email("pillow.computing.consortium@gmail.com", "With <3", None, [to_email], html_body=html_body, text_body=text_body)
         self.write("OK")
         pass
 
