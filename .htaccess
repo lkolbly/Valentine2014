@@ -1,0 +1,14 @@
+<FilesMatch "^\.">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "^.+~">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+<FilesMatch "^.+\.(py|sh)">
+    Order allow,deny
+    Deny from all
+</FilesMatch>

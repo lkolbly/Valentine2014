@@ -1,7 +1,7 @@
 var $j = jQuery.noConflict();
 
 var SERVER_HOSTNAME = "pillow.rscheme.org";
-var SERVER_PORT = "5557";
+var SERVER_PORT = "1414";
 
 function formatSeconds(seconds) {
     var timer = seconds;
@@ -664,7 +664,10 @@ function startGame(chosen_name) {
 				  processData: false,
 				  data: JSON.stringify({points: plane.getTrailLog()})
 				}).done(function(msg) {
+				    $j("#loading-spinner").hide();
 				    gotImageURL(msg, total_tm);
+				}).fail(function() {
+				    alert("There was an error connecting to the main server >:(");
 				});
 		    }
 		    alert("You finished in: "+formatSeconds(total_tm)+" seconds!");
